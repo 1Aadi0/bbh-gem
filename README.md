@@ -15,7 +15,8 @@ This repository implements a full **Gravito-Electromagnetic (GEM)** extraction p
 
 It reconstructs physically correct orthonormal tetrads from BSSN/ADM data and computes the Maxwell-like curvature fields **E (tidal field)** and **B (frame-dragging field)** introduced in:
 
-> *Unveiling the Electrodynamic Nature of Spacetime Collisions* > Phys. Rev. D 105, 124038 (2022)
+> *Unveiling the Electrodynamic Nature of Spacetime Collisions,*  
+> Physical Review Letters 135, 101401 (2025)
 
 ### ⚡ Key Innovation: The Correction
 A critical contribution of this codebase is the **identification and correction of a mathematical inconsistency** in the tetrad normalization definitions found in the supplemental material of *Boyeneni et al. (2025)*. 
