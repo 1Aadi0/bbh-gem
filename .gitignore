@@ -1,0 +1,24 @@
+# Data
+*.npz
+*.h5
+*.hdf5
+*.dat
+*.bin
+
+# Plots
+*.png
+
+# Logs
+*.log
+
+# Einstein Toolkit
+SIMFACTORY/
+output-*/
+checkpoints/
+
+# Mac
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
