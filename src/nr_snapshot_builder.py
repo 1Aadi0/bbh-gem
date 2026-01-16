@@ -159,8 +159,8 @@ def extract_snapshot():
     # 4. Save to Disk
     # CHANGE THIS LINE:
     np.savez(OUTPUT_FILE, time=TARGET_TIME, **data_store) 
-# Using TARGET_TIME ensures consistency with the user-defined target 
-# rather than the exact physical time from the dataset.
+    # Using TARGET_TIME ensures consistency with the user-defined target 
+    # rather than the exact physical time from the dataset.
     print(f"\n🎉 SNAPSHOT SAVED: {OUTPUT_FILE}")
     print(f"   Physical Time: {TARGET_TIME}")
     print(f"   Iteration: {target_it}")

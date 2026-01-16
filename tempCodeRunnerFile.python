@@ -6,7 +6,6 @@ from typing import Dict, Tuple
 DATA_FILE = "data.npz"
 
 # --------------------------- I/O --------------------------- #
-# --------------------------- I/O --------------------------- #
 def load_data(file_path: str) -> Dict[str, np.ndarray]:
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Could not find {file_path}")

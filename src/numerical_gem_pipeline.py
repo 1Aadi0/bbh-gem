@@ -263,7 +263,6 @@ def calculate_shift_curl_gem(betax, betay, dx, dy):
     return Bz
 
 # --------------------------- Main --------------------------- #
-# --------------------------- Main --------------------------- #
 def main(data_path: str = DATA_FILE, out_png: str = "Inspiral_Fields2.png"):
     raw_data = load_data(data_path)
     data = get_full_binary_grid(raw_data)
@@ -326,8 +325,7 @@ def main(data_path: str = DATA_FILE, out_png: str = "Inspiral_Fields2.png"):
     # Plot 3: Paper Replica (Shift)
     ax = axes[1, 0]
     ax.pcolormesh(vals_x, vals_y, vals_alp, cmap="Reds", shading="auto", vmin=0.0, vmax=1.0)
-    # ax.streamplot(vals_x, vals_y, vals_betax, vals_betay, color="black", density=1.2, arrowsize=1.0)
-    ax.contour(vals_x, vals_y, vals_alp, levels=[0.3], colors="k", linewidths=0.8)
+    # ax.contour(vals_x, vals_y, vals_alp, levels=[0.3], colors="k", linewidths=0.8)
     ax.set_title("3. Paper Replica (Shift Streamlines)")
     ax.set_aspect("equal")
 
