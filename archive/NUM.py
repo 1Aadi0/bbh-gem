@@ -264,7 +264,9 @@ def calculate_shift_curl_gem(betax, betay, dx, dy):
 
 from scipy.ndimage import gaussian_filter
 
-def main(data_path: str = DATA_FILE, out_png: str = "Paper_Replication_Polished.png"):
+from scipy.ndimage import gaussian_filter
+
+def main(data_path: str = DATA_FILE, out_png: str = "1.png"):
     raw_data = load_data(data_path)
     data = get_full_binary_grid(raw_data)
     x, y = data["x"], data["y"]

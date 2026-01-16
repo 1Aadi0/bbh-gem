@@ -1,27 +1,44 @@
-# Data
+# =========================
+# Data files
+# =========================
 *.npz
 *.h5
 *.hdf5
 *.dat
 *.bin
 
-# Plots
+# =========================
+# Plots / figures
+# =========================
 *.png
+*.pdf
 
+# =========================
 # Logs
+# =========================
 *.log
+*.out
+*.err
 
-# Einstein Toolkit
+# =========================
+# Einstein Toolkit outputs
+# =========================
 SIMFACTORY/
 output-*/
 checkpoints/
 
-# Mac
+# =========================
+# macOS
+# =========================
 .DS_Store
 
+# =========================
 # Python
+# =========================
 __pycache__/
 *.pyc
 
-# VS Code temp files
+# =========================
+# VS Code temporary files
+# =========================
 tempCodeRunnerFile.*
