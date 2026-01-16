@@ -6,6 +6,7 @@
 *.hdf5
 *.dat
 *.bin
+*.txt
 
 # =========================
 # Plots / figures
