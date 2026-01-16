@@ -22,3 +22,6 @@ checkpoints/
 # Python
 __pycache__/
 *.pyc
+
+# VS Code temp files
+tempCodeRunnerFile.*

@@ -1,1 +1,1 @@
-ax.pcolormesh(vals_x, vals_y, vals_alp, cmap="Reds", shading="auto", vmin=0.0, vmax=1.0)
+ax.streamplot(vals_x, vals_y, vals_betax, vals_betay, color="black", density=1.2, arrowsize=1.0)

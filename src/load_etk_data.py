@@ -8,10 +8,9 @@ SEARCH_DIR = "./output-0000/binary_final"
 OUTPUT_FILE = "data.npz"
 
 # --- PHYSICS TARGETS ---
-# Based on your mp_Psi4 data:
-# Merger Peak Amplitude happens approx at t = 134.0
-# Ringdown (Quasinormal decay) is visible approx at t = 160.0
-TARGET_TIME = 20.0  # <--- CHANGE THIS TO 160.0 FOR RINGDOWN
+# Based on mp_Psi4 data:
+# Targets the specific physical time to extract data from.
+TARGET_TIME = 130.0  
 
 def find_closest_iteration_to_time(file_path, target_t):
     """Scans a file to find the iteration corresponding to the physical time t."""
@@ -142,7 +141,6 @@ def extract_all():
     # 5. Save
     # CHANGE THIS LINE:
     np.savez(OUTPUT_FILE, time=TARGET_TIME, **data_store) 
-# The 'time=TARGET_TIME' part is critical!
     print(f"\n🎉 DONE. Data saved to: {OUTPUT_FILE}")
     print(f"   Snapshot Time: {TARGET_TIME}")
 

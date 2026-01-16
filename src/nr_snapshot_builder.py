@@ -7,9 +7,9 @@ SEARCH_DIR = "./output-0000/binary_final"
 OUTPUT_FILE = "data.npz"
 
 # --- PHYSICS CONTROLS ---
-# Set this to 134.0 for Merger
-# Set this to 160.0 for Ringdown
-TARGET_TIME = 20.0  
+# Based on mp_Psi4 data:
+# Targets the specific physical time to extract data from.
+TARGET_TIME = 130.0  
 
 # Refinement Level to extract (2 is usually good for visualization)
 TARGET_RL = 3 
@@ -159,7 +159,8 @@ def extract_snapshot():
     # 4. Save to Disk
     # CHANGE THIS LINE:
     np.savez(OUTPUT_FILE, time=TARGET_TIME, **data_store) 
-# The 'time=TARGET_TIME' part is critical!
+# Using TARGET_TIME ensures consistency with the user-defined target 
+# rather than the exact physical time from the dataset.
     print(f"\n🎉 SNAPSHOT SAVED: {OUTPUT_FILE}")
     print(f"   Physical Time: {TARGET_TIME}")
     print(f"   Iteration: {target_it}")
