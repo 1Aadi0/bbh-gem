@@ -3,14 +3,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 from typing import Dict, Tuple
 
-DATA_FILE = "final_data.npz"
+DATA_FILE = "data.npz"
 
+# --------------------------- I/O --------------------------- #
 # --------------------------- I/O --------------------------- #
 def load_data(file_path: str) -> Dict[str, np.ndarray]:
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Could not find {file_path}")
     d = np.load(file_path)
+    
+    # Try to load time, default to 'Unknown' if missing
+    t_val = d["time"] if "time" in d else None
+
     return dict(
+        time=t_val,  # <--- NEW FIELD
         alp=d["alp"], gxx=d["gxx"], gxy=d["gxy"], gyy=d["gyy"],
         gxz=d.get("gxz", np.zeros_like(d["gxx"])),
         gyz=d.get("gyz", np.zeros_like(d["gxx"])),
@@ -19,7 +25,6 @@ def load_data(file_path: str) -> Dict[str, np.ndarray]:
         betaz=d.get("betaz", np.zeros_like(d["betax"])),
         x=d["x"], y=d["y"],
     )
-
 # --------------------------- Grid Reconstruction --------------------------- #
 def get_full_binary_grid(data):
     # Standard Grid Reconstruction (Ghosts + Symmetry)
@@ -258,7 +263,8 @@ def calculate_shift_curl_gem(betax, betay, dx, dy):
     return Bz
 
 # --------------------------- Main --------------------------- #
-def main(data_path: str = DATA_FILE, out_png: str = "Inspiral_Fields.png"):
+# --------------------------- Main --------------------------- #
+def main(data_path: str = DATA_FILE, out_png: str = "Inspiral_Fields2.png"):
     raw_data = load_data(data_path)
     data = get_full_binary_grid(raw_data)
     x, y = data["x"], data["y"]
@@ -272,8 +278,6 @@ def main(data_path: str = DATA_FILE, out_png: str = "Inspiral_Fields.png"):
 
     # 2. Calculate Fields (Raw, no filtering)
     F_tensor = calculate_field_strength_tensor(theta, dx, dy)
-    
-    # Use the specific user-requested definition (Eq 9)
     E_fields = gem_fields(theta, F_tensor)
     
     # 3. Calculate Magnetic Fields (Both versions)
@@ -285,9 +289,7 @@ def main(data_path: str = DATA_FILE, out_png: str = "Inspiral_Fields.png"):
         if arr.shape == (len(y), len(x)): return arr
         return arr.T
 
-    # Extract E^0 components (Observer)
     Ex_raw, Ey_raw = E_fields["0"]
-
     vals_x, vals_y = x, y
     vals_alp = prep(data['alp'])
     vals_Ex, vals_Ey = prep(Ex_raw), prep(Ey_raw)
@@ -297,22 +299,28 @@ def main(data_path: str = DATA_FILE, out_png: str = "Inspiral_Fields.png"):
 
     fig, axes = plt.subplots(2, 2, figsize=(16, 14))
 
-    # Plot 1: E-Field (Raw Dipole)
+    # --- TIME LABEL ADDITION ---
+    sim_time = raw_data.get("time", None)
+    if sim_time is not None:
+        main_title = f"BBH-GEM Analysis | Simulation Time: t = {float(sim_time):.2f} M"
+    else:
+        main_title = "BBH-GEM Analysis | Time: Unknown"
+    fig.suptitle(main_title, fontsize=22, fontweight='bold', y=0.98)
+    # ---------------------------
+
+    # Plot 1: E-Field
     ax = axes[0, 0]
-    ax.pcolormesh(vals_x, vals_y, vals_alp, cmap="Reds", shading="auto", vmin=0.0, vmax=1.0)
     ax.streamplot(vals_x, vals_y, vals_Ex, vals_Ey, color="black", density=1.2, arrowsize=1.0)
     ax.set_title("1. Electric Field Lines (Eq 9, No Filter)")
     ax.set_aspect("equal")
 
-    # Plot 2: Magnetic Field (Rigorous Eq 8 - Saddle)
-    limit = np.max(np.abs(vals_Bz_GEM)) * 0.8
+    # Plot 2: Magnetic Field (B^3)
     ax = axes[0, 1]
-    ax.pcolormesh(vals_x, vals_y, vals_Bz_GEM, cmap="RdBu_r", shading="auto", vmin=-limit, vmax=limit)
     ax.streamplot(vals_x, vals_y, vals_B3x, vals_B3y, color="black", density=1.2, arrowsize=1.0)
     ax.set_title("2. Magnetic Field Lines (Eq 8 / B^3)")
     ax.set_aspect("equal")
 
-    # Plot 3: Paper Replica (Shift Lines) - UNMASKED per request
+    # Plot 3: Paper Replica (Shift)
     ax = axes[1, 0]
     ax.pcolormesh(vals_x, vals_y, vals_alp, cmap="Reds", shading="auto", vmin=0.0, vmax=1.0)
     ax.streamplot(vals_x, vals_y, vals_betax, vals_betay, color="black", density=1.2, arrowsize=1.0)
@@ -329,11 +337,11 @@ def main(data_path: str = DATA_FILE, out_png: str = "Inspiral_Fields.png"):
     ax.set_aspect("equal")
 
     for ax in axes.flat:
-        ax.set_xlim(-20, 20); ax.set_ylim(-20, 20)
+        ax.set_xlim(-20, 20)
+        ax.set_ylim(-20, 20)
 
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95]) # Adjust layout to make room for title
     plt.savefig(out_png, dpi=150)
     print(f"🎉 Full Rigorous Output saved to {out_png}")
-
 if __name__ == "__main__":
     main()

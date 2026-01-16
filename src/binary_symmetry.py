@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-DATA_FILE = "final_data.npz"
+DATA_FILE = "data.npz"
 
 def apply_rotational_symmetry():
     print("🚀 APPLYING 180-DEGREE ROTATIONAL SYMMETRY...")

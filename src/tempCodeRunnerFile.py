@@ -1,0 +1,1 @@
+ax.pcolormesh(vals_x, vals_y, vals_alp, cmap="Reds", shading="auto", vmin=0.0, vmax=1.0)

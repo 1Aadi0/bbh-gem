@@ -4,35 +4,57 @@ import os
 import glob
 
 # --- CONFIGURATION ---
-# Path to your data (adjust if needed, but this matches your previous 'ls')
 SEARCH_DIR = "./output-0000/binary_final"
-OUTPUT_FILE = "final_data.npz"
+OUTPUT_FILE = "data.npz"
 
-def find_best_iteration(file_path):
-    """Scans a file to find the iteration with the highest Refinement Level (rl)."""
+# --- PHYSICS TARGETS ---
+# Based on your mp_Psi4 data:
+# Merger Peak Amplitude happens approx at t = 134.0
+# Ringdown (Quasinormal decay) is visible approx at t = 160.0
+TARGET_TIME = 20.0  # <--- CHANGE THIS TO 160.0 FOR RINGDOWN
+
+def find_closest_iteration_to_time(file_path, target_t):
+    """Scans a file to find the iteration corresponding to the physical time t."""
+    best_it = -1
+    best_diff = 1e9
+    best_key = None
+    best_rl = -1
+
     with h5py.File(file_path, 'r') as f:
-        # Get all keys that look like data sets
-        keys = [k for k in f.keys() if " it=" in k and " rl=" in k]
-        if not keys: return None, None
+        # We only care about Refinement Level 8 (Fine Grid) or close to it
+        # Adjust 'rl=...' filter if your fine grid is different (e.g., rl=7 or rl=6)
+        # Using rl=2 or 3 is usually good for visualizing fields, rl=8 is too small (puncture only)
+        target_vis_rl = 3 
         
-        # Parse into (rl, iteration, key_name)
-        parsed = []
+        keys = [k for k in f.keys() if f" rl={target_vis_rl}" in k]
+        
+        if not keys:
+            print(f"   ⚠️  Warning: RL={target_vis_rl} not found. Falling back to any RL.")
+            keys = list(f.keys())
+
         for k in keys:
-            parts = k.split()
-            rl = -1
-            it = -1
-            for p in parts:
-                if p.startswith('rl='): rl = int(p.split('=')[1])
-                if p.startswith('it='): it = int(p.split('=')[1])
-            parsed.append((rl, it, k))
-            
-        # Sort by RL (descending) then Iteration (descending)
-        # We want the finest grid at the latest time
-        parsed.sort(key=lambda x: (x[0], x[1]), reverse=True)
-        return parsed[0] # Returns (best_rl, best_it, best_key)
+            # ETK HDF5 datasets usually have a 'time' attribute
+            try:
+                t_val = f[k].attrs['time']
+                diff = abs(t_val - target_t)
+                
+                if diff < best_diff:
+                    best_diff = diff
+                    best_key = k
+                    
+                    # Extract iteration from string " ... it=25600 ..."
+                    # Format is usually "name it=123 rl=2 ..."
+                    parts = k.split()
+                    for p in parts:
+                        if p.startswith('it='): best_it = int(p.split('=')[1])
+                        if p.startswith('rl='): best_rl = int(p.split('=')[1])
+            except:
+                continue
+                
+    return best_rl, best_it, best_key, best_diff
 
 def extract_all():
-    print("🚀 STARTING FRESH DATA EXTRACTION...")
+    print(f"🚀 STARTING EXTRACTION FOR TIME t ≈ {TARGET_TIME} ...")
     
     if not os.path.exists(SEARCH_DIR):
         print(f"❌ Error: Could not find directory {SEARCH_DIR}")
@@ -47,14 +69,18 @@ def extract_all():
     
     # 1. Find the target iteration from the Lapse file
     lapse_path = os.path.join(SEARCH_DIR, file_map['alp'])
-    print(f"--> Scanning {file_map['alp']} for best data...")
-    best_rl, best_it, best_key = find_best_iteration(lapse_path)
+    print(f"--> Scanning {file_map['alp']} for time t={TARGET_TIME}...")
+    
+    best_rl, best_it, best_key, time_diff = find_closest_iteration_to_time(lapse_path, TARGET_TIME)
     
     if best_key is None:
         print("❌ Could not find valid data in lapse file.")
         return
         
-    print(f"   ✅ Target found: Iteration {best_it} (Refinement Level {best_rl})")
+    print(f"   ✅ Target found:")
+    print(f"      - Iteration: {best_it}")
+    print(f"      - Refinement Level: {best_rl}")
+    print(f"      - Time Mismatch: {time_diff:.4f} M")
 
     data_store = {}
     
@@ -83,8 +109,11 @@ def extract_all():
     shift_path = os.path.join(SEARCH_DIR, file_map['shift'])
     with h5py.File(shift_path, 'r') as f:
         for comp in ['betax', 'betay', 'betaz']:
-            # Find key matching our target iteration and RL
-            keys = [k for k in f.keys() if f" {comp} " in k or f"::{comp} " in k]
+            # Construct a regex-like search for the same iteration and RL
+            # We assume shift has same structure as lapse
+            keys = [k for k in f.keys() if (f" {comp} " in k or f"::{comp} " in k)]
+            
+            # Strict match on iteration and RL to ensure sync
             target_key = next((k for k in keys if f"it={best_it}" in k and f"rl={best_rl}" in k), None)
             
             if target_key:
@@ -98,9 +127,8 @@ def extract_all():
     print("--> Extracting Spatial Metric (Gamma)...")
     metric_path = os.path.join(SEARCH_DIR, file_map['metric'])
     with h5py.File(metric_path, 'r') as f:
-        # Note: Depending on output, 'gzz' etc might be missing in 2D output, but we try all
         for comp in ['gxx', 'gxy', 'gxz', 'gyy', 'gyz', 'gzz']:
-            keys = [k for k in f.keys() if f" {comp} " in k or f"::{comp} " in k]
+            keys = [k for k in f.keys() if (f" {comp} " in k or f"::{comp} " in k)]
             target_key = next((k for k in keys if f"it={best_it}" in k and f"rl={best_rl}" in k), None)
             
             if target_key:
@@ -112,9 +140,11 @@ def extract_all():
                 data_store[comp] = np.full_like(data_store['alp'], default_val)
 
     # 5. Save
-    np.savez(OUTPUT_FILE, **data_store)
+    # CHANGE THIS LINE:
+    np.savez(OUTPUT_FILE, time=TARGET_TIME, **data_store) 
+# The 'time=TARGET_TIME' part is critical!
     print(f"\n🎉 DONE. Data saved to: {OUTPUT_FILE}")
-    print("   Ready for Step 2.")
+    print(f"   Snapshot Time: {TARGET_TIME}")
 
 if __name__ == "__main__":
     extract_all()
