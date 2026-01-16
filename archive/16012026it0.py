@@ -6,6 +6,7 @@ from typing import Dict, Tuple
 DATA_FILE = "data.npz"
 
 # --------------------------- I/O --------------------------- #
+# --------------------------- I/O --------------------------- #
 def load_data(file_path: str) -> Dict[str, np.ndarray]:
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Could not find {file_path}")
@@ -15,7 +16,7 @@ def load_data(file_path: str) -> Dict[str, np.ndarray]:
     t_val = d["time"] if "time" in d else None
 
     return dict(
-        time=t_val,
+        time=t_val,  # <--- NEW FIELD
         alp=d["alp"], gxx=d["gxx"], gxy=d["gxy"], gyy=d["gyy"],
         gxz=d.get("gxz", np.zeros_like(d["gxx"])),
         gyz=d.get("gyz", np.zeros_like(d["gxx"])),
@@ -24,7 +25,6 @@ def load_data(file_path: str) -> Dict[str, np.ndarray]:
         betaz=d.get("betaz", np.zeros_like(d["betax"])),
         x=d["x"], y=d["y"],
     )
-
 # --------------------------- Grid Reconstruction --------------------------- #
 def get_full_binary_grid(data):
     # Standard Grid Reconstruction (Ghosts + Symmetry)
@@ -263,7 +263,7 @@ def calculate_shift_curl_gem(betax, betay, dx, dy):
     return Bz
 
 # --------------------------- Main --------------------------- #
-def main(data_path: str = DATA_FILE, out_png: str = "Inspiral_Fields_Final.png"):
+def main(data_path: str = DATA_FILE, out_png: str = "Inspiral_Fields2.png"):
     raw_data = load_data(data_path)
     data = get_full_binary_grid(raw_data)
     x, y = data["x"], data["y"]
@@ -283,98 +283,66 @@ def main(data_path: str = DATA_FILE, out_png: str = "Inspiral_Fields_Final.png")
     B3_x, B3_y = calculate_B3_via_eq8_rigorous(theta, dx, dy)
     Bz_GEM = calculate_shift_curl_gem(data["betax"], data["betay"], dx, dy)
 
-    # --- INSERTED LOGIC: CALCULATE q0 (Eq 25) ---
-    # q0 = 0.5 * sqrt(gamma) * (E^2 + B^2)
-    Ex_raw, Ey_raw = E_fields["0"]
-    det_gamma = data['gxx'] * data['gyy'] - data['gxy']**2
-    sqrt_gamma = np.sqrt(np.abs(det_gamma))
-    E_sq = Ex_raw**2 + Ey_raw**2
-    B_sq = B3_x**2 + B3_y**2
-    q0 = 0.5 * sqrt_gamma * (E_sq + B_sq)
-    # --------------------------------------------
-
     # 4. Plotting Prep
     def prep(arr):
         if arr.shape == (len(y), len(x)): return arr
         return arr.T
 
+    Ex_raw, Ey_raw = E_fields["0"]
     vals_x, vals_y = x, y
     vals_alp = prep(data['alp'])
     vals_Ex, vals_Ey = prep(Ex_raw), prep(Ey_raw)
     vals_Bz_GEM = prep(Bz_GEM)
     vals_betax, vals_betay = prep(data['betax']), prep(data['betay'])
     vals_B3x, vals_B3y = prep(B3_x), prep(B3_y)
-    vals_q0 = prep(q0)
     Shift_mag = np.sqrt(vals_betax**2 + vals_betay**2)
 
-    # --- NEW: Toroidal Magnetic Field Calculation ---
-    X_grid, Y_grid = np.meshgrid(vals_x, vals_y) 
-    R_grid = np.sqrt(X_grid**2 + Y_grid**2)
-    R_grid[R_grid < 1e-6] = 1.0 # Avoid division by zero
-    B_toroidal = (-Y_grid * vals_B3x + X_grid * vals_B3y) / R_grid
-    # ------------------------------------------------
+    fig, axes = plt.subplots(2, 2, figsize=(16, 14))
 
-    # --- PLOTTING: 3x2 Grid ---
-    fig, axes = plt.subplots(3, 2, figsize=(16, 20))
-
+    # --- TIME LABEL ADDITION ---
     sim_time = raw_data.get("time", None)
     if sim_time is not None:
         main_title = f"BBH-GEM Analysis | Simulation Time: t = {float(sim_time):.2f} M"
     else:
         main_title = "BBH-GEM Analysis | Time: Unknown"
     fig.suptitle(main_title, fontsize=22, fontweight='bold', y=0.98)
-    
-    # --- PLOT 1: Magnetic Field (Streamlines Only) ---
+    # ---------------------------
+
+    # Plot 1: E-Field
     ax = axes[0, 0]
-    ax.streamplot(vals_x, vals_y, vals_B3x, vals_B3y, color="black", density=1.2, arrowsize=1.0)
-    ax.set_title("1. Magnetic Field Lines (Structure)")
-    ax.set_aspect("equal")
-
-    # --- PLOT 2: Electric Field (Streamlines Only) ---
-    ax = axes[0, 1]
     ax.streamplot(vals_x, vals_y, vals_Ex, vals_Ey, color="black", density=1.2, arrowsize=1.0)
-    ax.set_title("2. Electric Field Lines (Structure)")
+    ax.pcolormesh(vals_x, vals_y, vals_alp, cmap="Reds", shading="auto", vmin=0.0, vmax=1.0)
+    ax.set_title("1. Electric Field Lines (Eq 9, No Filter)")
     ax.set_aspect("equal")
 
-    # --- PLOT 3: Paper Replica (Shift with Lapse Colorbar) ---
+    # Plot 2: Magnetic Field (B^3)
+    ax = axes[0, 1]
+    ax.streamplot(vals_x, vals_y, vals_B3x, vals_B3y, color="white", density=1.2, arrowsize=1.0)
+    ax.pcolormesh(vals_x, vals_y, Shift_mag, cmap="viridis", shading="auto")
+    ax.set_title("2. Magnetic Field Lines (Eq 8 / B^3)")
+    ax.set_aspect("equal")
+
+    # Plot 3: Paper Replica (Shift)
     ax = axes[1, 0]
-    # Adding alpha heatmap back for reference as per "Alps value bar" request
-    pcm3 = ax.pcolormesh(vals_x, vals_y, vals_alp, cmap="Reds_r", shading="auto", vmin=0.0, vmax=1.0)
-    ax.streamplot(vals_x, vals_y, vals_betax, vals_betay, color="black", density=1.2, arrowsize=1.0)
-    ax.set_title("3. Shift Streamlines on Lapse (alpha)")
+    ax.pcolormesh(vals_x, vals_y, vals_alp, cmap="Reds", shading="auto", vmin=0.0, vmax=1.0)
+    # ax.contour(vals_x, vals_y, vals_alp, levels=[0.3], colors="k", linewidths=0.8)
+    ax.set_title("3. Paper Replica (Shift Streamlines)")
     ax.set_aspect("equal")
-    # ADDED COLORBAR for Lapse
-    fig.colorbar(pcm3, ax=ax, label=r"Lapse ($\alpha$)")
 
-    # --- PLOT 4: Shift Magnitude (with Shift Mag Colorbar) ---
+    # Plot 4: Shift Magnitude
+    
     ax = axes[1, 1]
-    pcm4 = ax.pcolormesh(vals_x, vals_y, Shift_mag, cmap="viridis", shading="auto")
+    ax.pcolormesh(vals_x, vals_y, Shift_mag, cmap="viridis", shading="auto")
     ax.streamplot(vals_x, vals_y, vals_betax, vals_betay, color="white", density=1.2, arrowsize=1.0)
     ax.set_title("4. Shift Magnitude & Streamlines")
     ax.set_aspect("equal")
-    # ADDED COLORBAR for Shift Magnitude
-    fig.colorbar(pcm4, ax=ax, label=r"Shift Magnitude ($|\vec{\beta}|$)")
-
-    # --- PLOT 5: Toroidal Magnetic Field (B_phi) ---
-    ax = axes[2, 0]
-    limit_B = np.max(np.abs(B_toroidal)) * 0.8
-    pcm5 = ax.pcolormesh(vals_x, vals_y, B_toroidal, cmap="RdBu_r", shading="auto", vmin=-limit_B, vmax=limit_B)
-    ax.streamplot(vals_x, vals_y, vals_B3x, vals_B3y, color="black", density=1.0, arrowsize=0.8, linewidth=0.5)
-    ax.set_title("5. Toroidal Magnetic Field (B^phi)")
-    ax.set_aspect("equal")
-    fig.colorbar(pcm5, ax=ax, label="B_phi (Normalized by R)")
-
-    # Hide 6th empty plot
-    axes[2, 1].axis('off')
 
     for ax in axes.flat:
-        if ax.lines or ax.collections: 
-            ax.set_xlim(-15, 15)
-            ax.set_ylim(-15, 15)
+        ax.set_xlim(-20, 20)
+        ax.set_ylim(-20, 20)
 
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95]) # Adjust layout to make room for title
     plt.savefig(out_png, dpi=150)
     print(f"🎉 Full Rigorous Output saved to {out_png}")
-
 if __name__ == "__main__":
     main()

@@ -10,7 +10,7 @@ OUTPUT_FILE = "data.npz"
 # --- PHYSICS TARGETS ---
 # Based on mp_Psi4 data:
 # Targets the specific physical time to extract data from.
-TARGET_TIME = 130.0  
+TARGET_TIME = 80.0  
 
 def find_closest_iteration_to_time(file_path, target_t):
     """Scans a file to find the iteration corresponding to the physical time t."""

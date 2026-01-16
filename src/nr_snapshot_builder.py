@@ -9,7 +9,7 @@ OUTPUT_FILE = "data.npz"
 # --- PHYSICS CONTROLS ---
 # Based on mp_Psi4 data:
 # Targets the specific physical time to extract data from.
-TARGET_TIME = 130.0  
+TARGET_TIME = 80.0  
 
 # Refinement Level to extract (2 is usually good for visualization)
 TARGET_RL = 3 
