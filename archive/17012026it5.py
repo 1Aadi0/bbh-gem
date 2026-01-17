@@ -266,7 +266,7 @@ def calculate_shift_curl_gem(betax, betay, dx, dy):
 # ... (imports remain the same) ...
 
 # --------------------------- Main --------------------------- #
-def main(data_path: str = DATA_FILE, run_name: str = "BBH_NONSpinning_test", use_git_folder: bool = True):
+def main(data_path: str = DATA_FILE, run_name: str = "BBH_NONSpinning_test", use_git_folder: bool = False):
     """
     Args:
         data_path: Path to the .npz data file.
@@ -282,7 +282,7 @@ def main(data_path: str = DATA_FILE, run_name: str = "BBH_NONSpinning_test", use
     
     # 2. Construct Paths
     base_dir = os.path.join(root_dir, run_name, "figures")
-    out_png = os.path.join(base_dir, "Inspiral_Fields_Refinementlevel_3.png")
+    out_png = os.path.join(base_dir, "Inspiral_Fields.png")
 
     # 3. Create Directory
     if not os.path.exists(base_dir):
@@ -397,8 +397,8 @@ def main(data_path: str = DATA_FILE, run_name: str = "BBH_NONSpinning_test", use
 
     for ax in axes.flat:
         if ax.lines or ax.collections: 
-            ax.set_xlim(-12, 12)
-            ax.set_ylim(-14, 14)
+            ax.set_xlim(-10, 10)
+            ax.set_ylim(-12, 12)
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig(out_png, dpi=150)

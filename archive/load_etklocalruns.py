@@ -23,7 +23,7 @@ def find_closest_iteration_to_time(file_path, target_t):
         # We only care about Refinement Level 8 (Fine Grid) or close to it
         # Adjust 'rl=...' filter if your fine grid is different (e.g., rl=7 or rl=6)
         # Using rl=2 or 3 is usually good for visualizing fields, rl=8 is too small (puncture only)
-        target_vis_rl = 3
+        target_vis_rl = 5 
         
         keys = [k for k in f.keys() if f" rl={target_vis_rl}" in k]
         

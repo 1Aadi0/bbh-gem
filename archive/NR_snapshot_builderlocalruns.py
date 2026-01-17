@@ -12,7 +12,7 @@ OUTPUT_FILE = "data.npz"
 TARGET_TIME = 116.0  
 
 # Refinement Level to extract (2 is usually good for visualization)
-TARGET_RL = 3
+TARGET_RL = 5
 
 def get_anchor_iteration(h5_file, target_time, target_rl):
     """
