@@ -263,8 +263,36 @@ def calculate_shift_curl_gem(betax, betay, dx, dy):
     return Bz
 
 # --------------------------- Main --------------------------- #
-def main(data_path: str = DATA_FILE, out_png: str = "Inspiral_Fields_Final.png"):
+# ... (imports remain the same) ...
+
+# --------------------------- Main --------------------------- #
+def main(data_path: str = DATA_FILE, run_name: str = "BBH_NONSpinning_test", use_git_folder: bool = True):
+    """
+    Args:
+        data_path: Path to the .npz data file.
+        run_name: Name of the subfolder (e.g., 'test_run_01').
+        use_git_folder: If True, saves to 'results/' (Tracked). 
+                        If False, saves to 'runs/' (Local/Ignored).
+    """
+    
+    # 1. Determine Output Root
+    # 'results' is for GIT (Final, Public)
+    # 'runs' is for LOCAL (Diagnostics, Ignored)
+    root_dir = "results" if use_git_folder else "runs"
+    
+    # 2. Construct Paths
+    base_dir = os.path.join(root_dir, run_name, "figures")
+    out_png = os.path.join(base_dir, "Inspiral_Fields.png")
+
+    # 3. Create Directory
+    if not os.path.exists(base_dir):
+        os.makedirs(base_dir)
+        print(f"   📂 Created output directory: {base_dir}")
+
+    print(f"   🖼️  Target: {out_png}")
+
     raw_data = load_data(data_path)
+    # ... (Rest of the architecture remains invariant) ...
     data = get_full_binary_grid(raw_data)
     x, y = data["x"], data["y"]
     dx, dy = float(x[1] - x[0]), float(y[1] - y[0])

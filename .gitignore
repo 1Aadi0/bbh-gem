@@ -43,3 +43,4 @@ __pycache__/
 # VS Code temporary files
 # =========================
 tempCodeRunnerFile.*
+runs/
