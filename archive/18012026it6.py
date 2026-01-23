@@ -2,7 +2,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Dict, Tuple
-
+from scipy.interpolate import RectBivariateSpline  # <--- CHANGE THIS IMPORT
 DATA_FILE = "data.npz"
 
 # --------------------------- I/O --------------------------- #
@@ -262,8 +262,54 @@ def calculate_shift_curl_gem(betax, betay, dx, dy):
     Bz = dby_dx - dbx_dy
     return Bz
 
-# --------------------------- Main --------------------------- #
-# ... (imports remain the same) ...
+# --------------------------- ROBUST RE-GRIDDING (INSERT THIS) --------------------------- #
+# --------------------------- ROBUST CUBIC RE-GRIDDING --------------------------- #
+def ensure_uniform_grid(data):
+    """
+    Uses Cubic Spline Interpolation to smooth over AMR gaps.
+    Eliminates 'kink' artifacts in derivatives at the stitching boundary.
+    """
+    x, y = data['x'], data['y']
+    
+    # Check uniformity
+    dx_arr = np.diff(x)
+    dy_arr = np.diff(y)
+    is_x_bad = not np.allclose(dx_arr, dx_arr[0], rtol=1e-3)
+    is_y_bad = not np.allclose(dy_arr, dy_arr[0], rtol=1e-3)
+    
+    if not (is_x_bad or is_y_bad):
+        print("   ✅ Grid is uniform. No re-gridding needed.")
+        return data, x[1]-x[0], y[1]-y[0]
+
+    print(f"   ⚠️  AMR Gap Detected. Smoothing with Cubic Spline...")
+    
+    # 1. Create Target Uniform Grid
+    nx_new = len(x)
+    ny_new = len(y)
+    x_uni = np.linspace(x.min(), x.max(), nx_new)
+    y_uni = np.linspace(y.min(), y.max(), ny_new)
+    
+    dx = x_uni[1] - x_uni[0]
+    dy = y_uni[1] - y_uni[0]
+    
+    new_data = data.copy()
+    new_data['x'] = x_uni
+    new_data['y'] = y_uni
+    
+    # 2. Interpolate using RectBivariateSpline (Cubic by default)
+    # This guarantees smooth derivatives across the x=0 gap
+    keys_to_interp = ['alp', 'betax', 'betay', 'gxx', 'gxy', 'gyy', 'gzz', 'gxz', 'gyz']
+    
+    for k in keys_to_interp:
+        # Note: RectBivariateSpline expects (y, x) axis order for the data matrix
+        # kx=3, ky=3 means Cubic Spline
+        spline = RectBivariateSpline(y, x, data[k], kx=3, ky=3)
+        
+        # Evaluate on new uniform grid
+        new_data[k] = spline(y_uni, x_uni)
+
+    print(f"   ✅ Spline Interpolation Complete. Grid: {nx_new}x{ny_new}")
+    return new_data, dx, dy
 
 # --------------------------- Main --------------------------- #
 def main(data_path: str = DATA_FILE, run_name: str = "BBH_NONSpinning_test", use_git_folder: bool = False):
@@ -282,7 +328,7 @@ def main(data_path: str = DATA_FILE, run_name: str = "BBH_NONSpinning_test", use
     
     # 2. Construct Paths
     base_dir = os.path.join(root_dir, run_name, "figures")
-    out_png = os.path.join(base_dir, "Inspiral_Fields_Refinementlevel_3.png")
+    out_png = os.path.join(base_dir, "Inspiral_Fields.png")
 
     # 3. Create Directory
     if not os.path.exists(base_dir):
@@ -290,14 +336,14 @@ def main(data_path: str = DATA_FILE, run_name: str = "BBH_NONSpinning_test", use
         print(f"   📂 Created output directory: {base_dir}")
 
     print(f"   🖼️  Target: {out_png}")
-
+    
     raw_data = load_data(data_path)
-    # ... (Rest of the architecture remains invariant) ...
-    data = get_full_binary_grid(raw_data)
+    stitched_data = get_full_binary_grid(raw_data)
+    
+    data, dx, dy = ensure_uniform_grid(stitched_data)
     x, y = data["x"], data["y"]
-    dx, dy = float(x[1] - x[0]), float(y[1] - y[0])
 
-    print(f"Grid Shape: {data['alp'].shape}")
+    print(f"Grid Shape: {data['alp'].shape}, dx={dx:.4f}")
 
     # 1. Build & Verify Full Tetrads
     theta = build_tetrads(data)
@@ -342,73 +388,65 @@ def main(data_path: str = DATA_FILE, run_name: str = "BBH_NONSpinning_test", use
     B_toroidal = (-Y_grid * vals_B3x + X_grid * vals_B3y) / R_grid
     # ------------------------------------------------
 
-    # --- PLOTTING: 2x3 Grid (Landscape for Slides) ---
-    # Changed from (3, 2) to (2, 3) to create a wide layout
-    # Increased width to 24, reduced height to 13 to match 16:9 slide ratio
-    fig, axes = plt.subplots(2, 3, figsize=(24, 13)) 
+    # --- PLOTTING: 3x2 Grid ---
+    fig, axes = plt.subplots(3, 2, figsize=(16, 20))
 
     sim_time = raw_data.get("time", None)
     if sim_time is not None:
         main_title = f"BBH-GEM Analysis | Simulation Time: t = {float(sim_time):.2f} M"
     else:
         main_title = "BBH-GEM Analysis | Time: Unknown"
-    fig.suptitle(main_title, fontsize=20, fontweight='bold', y=0.98)
+    fig.suptitle(main_title, fontsize=22, fontweight='bold', y=0.98)
     
-    # --- PLOT 1: Magnetic Field (Structure) ---
-    # Position: Top Left
+    # --- PLOT 1: Magnetic Field (Streamlines Only) ---
     ax = axes[0, 0]
     ax.streamplot(vals_x, vals_y, vals_B3x, vals_B3y, color="black", density=1.2, arrowsize=1.0)
-    ax.set_title("1. Magnetic Field Lines (Structure)", fontsize=14)
+    ax.set_title("1. Magnetic Field Lines (Structure)")
     ax.set_aspect("equal")
 
-    # --- PLOT 2: Electric Field (Structure) ---
-    # Position: Top Middle
+    # --- PLOT 2: Electric Field (Streamlines Only) ---
     ax = axes[0, 1]
     ax.streamplot(vals_x, vals_y, vals_Ex, vals_Ey, color="black", density=1.2, arrowsize=1.0)
-    ax.set_title("2. Electric Field Lines (Structure)", fontsize=14)
+    ax.set_title("2. Electric Field Lines (Structure)")
     ax.set_aspect("equal")
 
     # --- PLOT 3: Paper Replica (Shift with Lapse Colorbar) ---
-    # Position: Top Right
-    ax = axes[0, 2]
+    ax = axes[1, 0]
+    # Adding alpha heatmap back for reference as per "Alps value bar" request
     pcm3 = ax.pcolormesh(vals_x, vals_y, vals_alp, cmap="Reds_r", shading="auto", vmin=0.0, vmax=1.0)
     ax.streamplot(vals_x, vals_y, vals_betax, vals_betay, color="black", density=1.2, arrowsize=1.0)
-    ax.set_title("3. Shift Streamlines on Lapse", fontsize=14)
+    ax.set_title("3. Shift Streamlines on Lapse (alpha)")
     ax.set_aspect("equal")
+    # ADDED COLORBAR for Lapse
     fig.colorbar(pcm3, ax=ax, label=r"Lapse ($\alpha$)")
 
-    # --- PLOT 4: Shift Magnitude ---
-    # Position: Bottom Left
-    ax = axes[1, 0]
+    # --- PLOT 4: Shift Magnitude (with Shift Mag Colorbar) ---
+    ax = axes[1, 1]
     pcm4 = ax.pcolormesh(vals_x, vals_y, Shift_mag, cmap="viridis", shading="auto")
     ax.streamplot(vals_x, vals_y, vals_betax, vals_betay, color="white", density=1.2, arrowsize=1.0)
-    ax.set_title("4. Shift Magnitude", fontsize=14)
+    ax.set_title("4. Shift Magnitude & Streamlines")
     ax.set_aspect("equal")
+    # ADDED COLORBAR for Shift Magnitude
     fig.colorbar(pcm4, ax=ax, label=r"Shift Magnitude ($|\vec{\beta}|$)")
 
     # --- PLOT 5: Toroidal Magnetic Field (B_phi) ---
-    # Position: Bottom Middle
-    ax = axes[1, 1]
+    ax = axes[2, 0]
     limit_B = np.max(np.abs(B_toroidal)) * 0.8
     pcm5 = ax.pcolormesh(vals_x, vals_y, B_toroidal, cmap="RdBu_r", shading="auto", vmin=-limit_B, vmax=limit_B)
     ax.streamplot(vals_x, vals_y, vals_B3x, vals_B3y, color="black", density=1.0, arrowsize=0.8, linewidth=0.5)
-    ax.set_title("5. Toroidal Magnetic Field (B^phi)", fontsize=14)
+    ax.set_title("5. Toroidal Magnetic Field (B^phi)")
     ax.set_aspect("equal")
     fig.colorbar(pcm5, ax=ax, label="B_phi (Normalized by R)")
 
-    # --- EMPTY SLOT ---
-    # Position: Bottom Right (Hide it)
-    axes[1, 2].axis('off')
+    # Hide 6th empty plot
+    axes[2, 1].axis('off')
 
-    # Apply limits to all active plots
     for ax in axes.flat:
         if ax.lines or ax.collections: 
-            ax.set_xlim(-12, 12)
-            ax.set_ylim(-14, 14)
-            ax.tick_params(labelsize=10)
+            ax.set_xlim(-8, 8)
+            ax.set_ylim(-4, 4)
 
-    # Use tight_layout with padding to ensure labels don't overlap
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95], h_pad=3.0, w_pad=3.0)
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig(out_png, dpi=150)
     print(f"🎉 Full Rigorous Output saved to {out_png}")
 
