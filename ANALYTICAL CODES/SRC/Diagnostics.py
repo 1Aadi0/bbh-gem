@@ -58,7 +58,7 @@ def calculate_automated_fields():
                     for r_idx in range(4):
                         eps = sp.LeviCivita(u, v, s, r_idx)
                         if eps != 0:
-                            hodge_val += eps * F_cov[s, r_idx]
+                            hodge_val += -eps * F_cov[s, r_idx]
                 dual_F[u, v] = sp.simplify(hodge_val / (2 * sqrt_det_g))
         
         # D. Magnetic Field Vector: B^u = n_v * (*F)^uv
