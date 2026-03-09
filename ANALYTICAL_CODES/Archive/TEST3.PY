@@ -22,6 +22,22 @@ def calculate_automated_fields():
         [0, 0, 0, r*sp.sin(theta)]       # phi-leg (index 3)
     ])
     
+
+
+    # #Test case
+    # alpha_func = 1
+    # # # Covariant Metric g_uv
+    # g_cov = sp.diag(-1, 1, r**2, r**2 * sp.sin(theta)**2)
+    # g_inv = g_cov.inv()
+    # sqrt_det_g = sp.simplify(sp.sqrt(-g_cov.det()))
+    
+    # # Non-Rotated Tetrad Legs A_mu^(hat_a)
+    # Tetrad = sp.Matrix([
+    #     [1, 0, 0, 0],           # t-leg (index 0)
+    #     [0, 1, 0, 0],         # r-leg (index 1)
+    #     [0, 0, r, 0],                    # theta-leg (index 2)
+    #     [0, 0, 0, r*sp.sin(theta)]       # phi-leg (index 3)
+    # ]) 
     print("\n=== 1. NON-ROTATED TETRAD MATRIX (Diagonal / Spherical) ===")
     print("Rows: [t, r, theta, phi]_hat | Cols: [dt, dr, dtheta, dphi]")
     sp.pprint(Tetrad)
@@ -33,6 +49,7 @@ def calculate_automated_fields():
 
     def get_dynamical_fields(alpha_idx):
         A_mu = Tetrad[alpha_idx, :]
+        sp.pprint(A_mu)
         
         # A. Field Strength F_uv = d_u A_v - d_v A_u
         F_cov = sp.zeros(4, 4)
@@ -66,12 +83,67 @@ def calculate_automated_fields():
         
         return E_vec, B_vec
     
-    
+    def constitutive_relations(E_Results, B_Results, A_mu):
+        """
+        Implements DGREM constitutive relations (Eqs 122-125) to map 
+        Frame Fields (E, B) to Auxiliary Fields (D, H).
+        """
+        # 1. Project E and B to the Orthonormal Tetrad Basis
+        # A^mu_{hat_i} are the columns of the inverse tetrad matrix
+        A_inv = Tetrad.inv()
+        E_hat = sp.zeros(4, 4)
+        B_hat = sp.zeros(4, 4)
+        
+        for a in range(4):
+            for i_hat in range(4):
+                # V^{hat_a}_{hat_i} = V^{hat_a}_mu * e^mu_{hat_i}
+                E_hat[a, i_hat] = sp.simplify(sum(E_Results[a][mu] * A_mu[mu, i_hat] for mu in range(4)))
+                B_hat[a, i_hat] = sp.simplify(sum(B_Results[a][mu] * A_mu[mu, i_hat] for mu in range(4)))
 
-    # --- 3. Execution and Formatting ---
+        D_hat = sp.zeros(4, 4)
+        H_hat = sp.zeros(4, 4)
+        print("\n--- 2. Projected Fields in Orthonormal Tetrad Basis ---")
+        print("E_hat (Electric in Tetrad): Rows [t, r, theta, phi] Legs | Cols: [t, r, theta, phi] Components")
+        sp.pprint(E_hat)
+        print("B_hat (Magnetic in Tetrad): Rows [t, r, theta, phi] Legs | Cols: [t, r, theta, phi] Components")
+        sp.pprint(B_hat)
+        # Pre-calculate spatial traces: Tr(V) = V^1_1 + V^2_2 + V^3_3
+        tr_E = sum(E_hat[l, l] for l in range(1, 4))
+        tr_B = sum(B_hat[l, l] for l in range(1, 4))
+        print(f"trace of E: {tr_E}")
+        print(f"trace of B: {tr_B}")
+
+        # --- 2. Time-Leg Projections (hat_alpha = 0) ---
+        for i in range(1, 4):
+            # Eq 122: D^i_0 = - eps^{ijk} B_jk (antisymmetric part of spatial legs)
+            eps_sum_D = sum(sum(sp.LeviCivita(i, j, k) * B_hat[j, k] for k in range(1, 4)) for j in range(1, 4))
+            D_hat[0, i] = sp.simplify(-eps_sum_D)
+            
+            # Eq 124: H_{0 i} = 1/2 eps_{ijk} E^jk (antisymmetric part of spatial legs)
+            eps_sum_H = sum(sum(sp.LeviCivita(i, j, k) * E_hat[j, k] for k in range(1, 4)) for j in range(1, 4))
+            H_hat[0, i] = sp.simplify(0.5 * eps_sum_H)
+
+        # --- 3. Spatial-Leg Projections (hat_alpha = 1, 2, 3) ---
+        for k in range(1, 4): # Leg index (hat_k)
+            for i in range(1, 4): # Component index (hat_i)
+                delta_ki = 1 if k == i else 0
+                
+                # Eq 123: D^i_k = -1/2 (E^i_k + E^k_i) + delta^i_k * Tr(E)
+                # This incorporates the symmetric part and the isotropic pressure
+                D_hat[k, i] = sp.simplify(-0.5 * (E_hat[k, i] + E_hat[i, k]) + delta_ki * tr_E)
+                
+                # Eq 125: H_{k i} = -B_{i k} + 1/2 delta_{k i} Tr(B) - eps_{kij} E^0_j
+                # Note the index swap on the first term (B_{i k}) per PRD Eq 125
+                eps_term = sum(sp.LeviCivita(k, i, j) * E_hat[0, j] for j in range(1, 4))
+                H_hat[k, i] = sp.simplify(-B_hat[i, k] + 0.5 * delta_ki * tr_B + eps_term)
+
+        return D_hat, H_hat
+    
+# --- 3. Execution and Formatting ---
     labels = ['t', 'r', 'theta', 'phi']
     E_Results = []
     B_Results = []
+    
 
     print("\nCalculating Automated Electric and Magnetic Fields...")
     for i in range(4):
@@ -110,6 +182,24 @@ def calculate_automated_fields():
     # Result for non-rotated spherical will be 0; rotated will be M/r^3
     B_z_phi_approx = B_z_phi.series(M, 0, 2).removeO()
     sp.pprint(B_z_phi_approx)
+
+
+    D_hat, H_hat = constitutive_relations(E_Results, B_Results, Tetrad)
+
+    print("\n=== DGREM FIELD RESULTS (Projected Orthonormal) ===")
+    print("D_hat (Auxiliary Electric): Rows [t, r, theta, phi] Legs")
+    sp.pprint(D_hat)
+    print("\nH_hat (Auxiliary Magnetic): Rows [t, r, theta, phi] Legs")
+    sp.pprint(H_hat)
+
+    # # Sanity Check for Vacuum Charge q0
+    # # q0 = div(D_0) - (rho + kappa*P)
+    # div_D0 = sp.simplify(sp.diff(sqrt_det_g * D_hat[0, 1], r) / sqrt_det_g) # Radial div for spherical
+    # print("\n--- Vacuum Spacetime Charge Density (q0) ---")
+    # sp.pprint(div_D0)
+
+# if __name__ == "__main__":
+#     calculate_automated_fields()
 
 if __name__ == "__main__":
     calculate_automated_fields()
