@@ -5,77 +5,77 @@ from sympy import lambdify
 
 def calculate_automated_fields():
     # # --- 1. Variables and Metric Setup ---
-    # t, r, theta, phi = sp.symbols('t r theta phi', real=True)
-    # M = sp.symbols('M', real=True, positive=True)
-    # R_far = sp.symbols('R', real=True, positive=True) # For display in Far Field
-    # rs = 2 * M
+    t, r, theta, phi = sp.symbols('t r theta phi', real=True)
+    M = sp.symbols('M', real=True, positive=True)
+    R_far = sp.symbols('R', real=True, positive=True) # For display in Far Field
+    rs = 2 * M
     
     # Use exact fractions to prevent floating point pollution
     half = sp.Rational(1, 2)
     
-    # alpha_func = sp.sqrt(1 - rs/r)
+    alpha_func = sp.sqrt(1 - rs/r)
     
-    # # Covariant Metric g_uv
-    # g_cov = sp.diag(-(alpha_func**2), 1/(alpha_func**2), r**2, r**2 * sp.sin(theta)**2)
-    # g_inv = g_cov.inv()
-    
-    # # Fix the Absolute Value Branch Cut for Spherical Coordinates
-    # sqrt_det_g = sp.simplify(sp.sqrt(-g_cov.det())).replace(sp.Abs(sp.sin(theta)), sp.sin(theta))
-    
-    # # Non-Rotated Tetrad Legs A_mu^(hat_a)
-    # Tetrad = sp.Matrix([
-    #     [alpha_func, 0, 0, 0],           # t-leg (index 0)
-    #     [0, 1/alpha_func, 0, 0],         # r-leg (index 1)
-    #     [0, 0, r, 0],                    # theta-leg (index 2)
-    #     [0, 0, 0, r*sp.sin(theta)]       # phi-leg (index 3)
-    # ])
-
-    # print("\n=== 1. NON-ROTATED TETRAD MATRIX (Diagonal / Spherical) ===")
-    # print("Rows: [t, r, theta, phi]_hat | Cols: [dt, dr, dtheta, dphi]")
-    # sp.pprint(Tetrad)
-
-    t, x, y, z = sp.symbols('t x y z', real=True)
-    M = sp.symbols('M', real=True, positive=True)
-    
-    half = sp.Rational(1, 2)
-    
-    # Isotropic radial coordinate
-    r_bar = sp.sqrt(x**2 + y**2 + z**2)
-    
-    # Conformal factor
-    psi = 1 + M / (2 * r_bar)
-    
-    # Lapse function
-    alpha_func = (1 - M / (2 * r_bar)) / psi
-    
-    # Covariant Metric g_uv (Cartesian)
-    # g_tt = -alpha^2, g_xx = g_yy = g_zz = psi^4
-    g_cov = sp.diag(
-        -(alpha_func**2), 
-        psi**4, 
-        psi**4, 
-        psi**4
-    )
+    # Covariant Metric g_uv
+    g_cov = sp.diag(-(alpha_func**2), 1/(alpha_func**2), r**2, r**2 * sp.sin(theta)**2)
     g_inv = g_cov.inv()
     
-    # Determinant of the metric: sqrt(-g) = alpha * psi^6
-    # We define it manually here to prevent SymPy from getting stuck 
-    # taking the square root of massive Cartesian polynomials.
-    sqrt_det_g = sp.simplify(alpha_func * psi**6)
+    # Fix the Absolute Value Branch Cut for Spherical Coordinates
+    sqrt_det_g = sp.simplify(sp.sqrt(-g_cov.det())).replace(sp.Abs(sp.sin(theta)), sp.sin(theta))
     
     # Non-Rotated Tetrad Legs A_mu^(hat_a)
-    # In Cartesian, the tetrad maps cleanly to [t, x, y, z]
     Tetrad = sp.Matrix([
-        [alpha_func, 0, 0, 0],           # t-leg (index 0) maps to dt
-        [0, psi**2, 0, 0],               # x-leg (index 1) maps to dx
-        [0, 0, psi**2, 0],               # y-leg (index 2) maps to dy
-        [0, 0, 0, psi**2]                # z-leg (index 3) maps to dz
+        [alpha_func, 0, 0, 0],           # t-leg (index 0)
+        [0, 1/alpha_func, 0, 0],         # r-leg (index 1)
+        [0, 0, r, 0],                    # theta-leg (index 2)
+        [0, 0, 0, r*sp.sin(theta)]       # phi-leg (index 3)
     ])
+
+    print("\n=== 1. NON-ROTATED TETRAD MATRIX (Diagonal / Spherical) ===")
+    print("Rows: [t, r, theta, phi]_hat | Cols: [dt, dr, dtheta, dphi]")
+    sp.pprint(Tetrad)
+
+    # t, x, y, z = sp.symbols('t x y z', real=True)
+    # M = sp.symbols('M', real=True, positive=True)
+    
+    # half = sp.Rational(1, 2)
+    
+    # # Isotropic radial coordinate
+    # r_bar = sp.sqrt(x**2 + y**2 + z**2)
+    
+    # # Conformal factor
+    # psi = 1 + M / (2 * r_bar)
+    
+    # # Lapse function
+    # alpha_func = (1 - M / (2 * r_bar)) / psi
+    
+    # # Covariant Metric g_uv (Cartesian)
+    # # g_tt = -alpha^2, g_xx = g_yy = g_zz = psi^4
+    # g_cov = sp.diag(
+    #     -(alpha_func**2), 
+    #     psi**4, 
+    #     psi**4, 
+    #     psi**4
+    # )
+    # g_inv = g_cov.inv()
+    
+    # # Determinant of the metric: sqrt(-g) = alpha * psi^6
+    # # We define it manually here to prevent SymPy from getting stuck 
+    # # taking the square root of massive Cartesian polynomials.
+    # sqrt_det_g = sp.simplify(alpha_func * psi**6)
+    
+    # # Non-Rotated Tetrad Legs A_mu^(hat_a)
+    # # In Cartesian, the tetrad maps cleanly to [t, x, y, z]
+    # Tetrad = sp.Matrix([
+    #     [alpha_func, 0, 0, 0],           # t-leg (index 0) maps to dt
+    #     [0, psi**2, 0, 0],               # x-leg (index 1) maps to dx
+    #     [0, 0, psi**2, 0],               # y-leg (index 2) maps to dy
+    #     [0, 0, 0, psi**2]                # z-leg (index 3) maps to dz
+    # ])
     
     n_cov = sp.Matrix([-alpha_func, 0, 0, 0])
     
-    # UPDATE COORDINATE ARRAY
-    coords = [t, x, y, z]
+    # # UPDATE COORDINATE ARRAY
+    # coords = [t, x, y, z]
 
     # # #Test case
     # alpha_func = 1
@@ -104,7 +104,7 @@ def calculate_automated_fields():
     # # --- 2. Automated Tensor Engines ---
     # # Normal vector n_mu = (-alpha, 0, 0, 0)
     # n_cov = sp.Matrix([-alpha_func, 0, 0, 0])
-    # coords = [t, r, theta, phi]
+    coords = [t, r, theta, phi]
 
     def get_dynamical_fields(alpha_idx):
         A_mu = Tetrad[alpha_idx, :]
