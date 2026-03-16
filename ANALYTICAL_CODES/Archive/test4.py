@@ -4,35 +4,78 @@ import matplotlib.pyplot as plt
 from sympy import lambdify
 
 def calculate_automated_fields():
-    # --- 1. Variables and Metric Setup ---
-    t, r, theta, phi = sp.symbols('t r theta phi', real=True)
-    M = sp.symbols('M', real=True, positive=True)
-    R_far = sp.symbols('R', real=True, positive=True) # For display in Far Field
-    rs = 2 * M
+    # # --- 1. Variables and Metric Setup ---
+    # t, r, theta, phi = sp.symbols('t r theta phi', real=True)
+    # M = sp.symbols('M', real=True, positive=True)
+    # R_far = sp.symbols('R', real=True, positive=True) # For display in Far Field
+    # rs = 2 * M
     
     # Use exact fractions to prevent floating point pollution
     half = sp.Rational(1, 2)
     
-    alpha_func = sp.sqrt(1 - rs/r)
+    # alpha_func = sp.sqrt(1 - rs/r)
     
-    # Covariant Metric g_uv
-    g_cov = sp.diag(-(alpha_func**2), 1/(alpha_func**2), r**2, r**2 * sp.sin(theta)**2)
+    # # Covariant Metric g_uv
+    # g_cov = sp.diag(-(alpha_func**2), 1/(alpha_func**2), r**2, r**2 * sp.sin(theta)**2)
+    # g_inv = g_cov.inv()
+    
+    # # Fix the Absolute Value Branch Cut for Spherical Coordinates
+    # sqrt_det_g = sp.simplify(sp.sqrt(-g_cov.det())).replace(sp.Abs(sp.sin(theta)), sp.sin(theta))
+    
+    # # Non-Rotated Tetrad Legs A_mu^(hat_a)
+    # Tetrad = sp.Matrix([
+    #     [alpha_func, 0, 0, 0],           # t-leg (index 0)
+    #     [0, 1/alpha_func, 0, 0],         # r-leg (index 1)
+    #     [0, 0, r, 0],                    # theta-leg (index 2)
+    #     [0, 0, 0, r*sp.sin(theta)]       # phi-leg (index 3)
+    # ])
+
+    # print("\n=== 1. NON-ROTATED TETRAD MATRIX (Diagonal / Spherical) ===")
+    # print("Rows: [t, r, theta, phi]_hat | Cols: [dt, dr, dtheta, dphi]")
+    # sp.pprint(Tetrad)
+
+    t, x, y, z = sp.symbols('t x y z', real=True)
+    M = sp.symbols('M', real=True, positive=True)
+    
+    half = sp.Rational(1, 2)
+    
+    # Isotropic radial coordinate
+    r_bar = sp.sqrt(x**2 + y**2 + z**2)
+    
+    # Conformal factor
+    psi = 1 + M / (2 * r_bar)
+    
+    # Lapse function
+    alpha_func = (1 - M / (2 * r_bar)) / psi
+    
+    # Covariant Metric g_uv (Cartesian)
+    # g_tt = -alpha^2, g_xx = g_yy = g_zz = psi^4
+    g_cov = sp.diag(
+        -(alpha_func**2), 
+        psi**4, 
+        psi**4, 
+        psi**4
+    )
     g_inv = g_cov.inv()
     
-    # Fix the Absolute Value Branch Cut for Spherical Coordinates
-    sqrt_det_g = sp.simplify(sp.sqrt(-g_cov.det())).replace(sp.Abs(sp.sin(theta)), sp.sin(theta))
+    # Determinant of the metric: sqrt(-g) = alpha * psi^6
+    # We define it manually here to prevent SymPy from getting stuck 
+    # taking the square root of massive Cartesian polynomials.
+    sqrt_det_g = sp.simplify(alpha_func * psi**6)
     
     # Non-Rotated Tetrad Legs A_mu^(hat_a)
+    # In Cartesian, the tetrad maps cleanly to [t, x, y, z]
     Tetrad = sp.Matrix([
-        [alpha_func, 0, 0, 0],           # t-leg (index 0)
-        [0, 1/alpha_func, 0, 0],         # r-leg (index 1)
-        [0, 0, r, 0],                    # theta-leg (index 2)
-        [0, 0, 0, r*sp.sin(theta)]       # phi-leg (index 3)
+        [alpha_func, 0, 0, 0],           # t-leg (index 0) maps to dt
+        [0, psi**2, 0, 0],               # x-leg (index 1) maps to dx
+        [0, 0, psi**2, 0],               # y-leg (index 2) maps to dy
+        [0, 0, 0, psi**2]                # z-leg (index 3) maps to dz
     ])
-
-    print("\n=== 1. NON-ROTATED TETRAD MATRIX (Diagonal / Spherical) ===")
-    print("Rows: [t, r, theta, phi]_hat | Cols: [dt, dr, dtheta, dphi]")
-    sp.pprint(Tetrad)
+    
+    n_cov = sp.Matrix([-alpha_func, 0, 0, 0])
+    
+    # UPDATE COORDINATE ARRAY
+    coords = [t, x, y, z]
 
     # # #Test case
     # alpha_func = 1
@@ -52,16 +95,16 @@ def calculate_automated_fields():
     # ]) 
     
     
-    # print("\n=== 1. NON-ROTATED TETRAD MATRIX (Diagonal / Spherical) ===")
-    # print("Rows: [t, r, theta, phi]_hat | Cols: [dt, dr, dtheta, dphi]")
-    # sp.pprint(Tetrad)
+    print("\n=== 1. NON-ROTATED TETRAD MATRIX (Diagonal / Spherical) ===")
+    print("Rows: [t, r, theta, phi]_hat | Cols: [dt, dr, dtheta, dphi]")
+    sp.pprint(Tetrad)
 
     
 
-    # --- 2. Automated Tensor Engines ---
-    # Normal vector n_mu = (-alpha, 0, 0, 0)
-    n_cov = sp.Matrix([-alpha_func, 0, 0, 0])
-    coords = [t, r, theta, phi]
+    # # --- 2. Automated Tensor Engines ---
+    # # Normal vector n_mu = (-alpha, 0, 0, 0)
+    # n_cov = sp.Matrix([-alpha_func, 0, 0, 0])
+    # coords = [t, r, theta, phi]
 
     def get_dynamical_fields(alpha_idx):
         A_mu = Tetrad[alpha_idx, :]
@@ -231,63 +274,58 @@ def calculate_automated_fields():
         return q, j
     
     def plot_analytical_fields(E_hat, q_hat, rho_hat, M_val=1.0):
-        print("\n=== 4. GENERATING ANALYTICAL PLOTS ===")
+        print("\n=== 4. GENERATING ANALYTICAL PLOTS (CARTESIAN) ===")
         # 1. Setup 2D Cartesian Grid (X-Z plane, y=0)
         grid_lim = 8.0
         resolution = 250
         x_vals = np.linspace(-grid_lim, grid_lim, resolution)
         z_vals = np.linspace(-grid_lim, grid_lim, resolution)
         X, Z = np.meshgrid(x_vals, z_vals)
+        Y = np.zeros_like(X) # Evaluate exactly on the equatorial slice y=0
         
-        # 2. Transform to Spherical Coordinates 
         R = np.sqrt(X**2 + Z**2)
-        R = np.where(R < 1e-5, 1e-5, R) # Prevent division by zero
-        Theta = np.arccos(Z / R)
         
-        # Mask out the interior of the black hole (R < 2M)
-        rs_val = 2.0 * M_val
-        mask = R > (1.01 * rs_val)
+        # Mask out the interior of the black hole 
+        # In isotropic coords, the horizon is at r_bar = M/2
+        horizon_r_bar = M_val / 2.0
+        mask = R > (1.05 * horizon_r_bar)
         
         # Safe arrays bypass math domain errors inside the horizon
-        R_safe = np.where(mask, R, 1.01 * rs_val)
-        Theta_safe = np.where(mask, Theta, np.pi/2)
+        X_safe = np.where(mask, X, 1.05 * horizon_r_bar)
+        Y_safe = np.where(mask, Y, 0.0)
+        Z_safe = np.where(mask, Z, 0.0)
 
         # --- 3. Lambdify SymPy Expressions ---
         print("Lambdifying exact symbolic expressions into NumPy functions...")
         
-        E_r_sym = sp.simplify(E_hat[0, 1].subs(M, M_val))
-        E_theta_sym = sp.simplify(E_hat[0, 2].subs(M, M_val))
+        # Extract Ex (index 1) and Ez (index 3) from the time-leg (index 0) of E_hat
+        Ex_sym = sp.simplify(E_hat[0, 1].subs(M, M_val))
+        Ez_sym = sp.simplify(E_hat[0, 3].subs(M, M_val))
         q0_sym = sp.simplify(q_hat[0].subs(M, M_val))
-        rho0_sym = sp.simplify(rho_hat[0].subs(M, M_val)) # Extract pure density
+        rho0_sym = sp.simplify(rho_hat[0].subs(M, M_val))
         
-        E_r_func = lambdify((r, theta), E_r_sym, "numpy")
-        E_theta_func = lambdify((r, theta), E_theta_sym, "numpy")
-        q0_func = lambdify((r, theta), q0_sym, "numpy")
-        rho0_func = lambdify((r, theta), rho0_sym, "numpy")
+        # Compile to NumPy using the new (x, y, z) symbols
+        Ex_func = lambdify((x, y, z), Ex_sym, "numpy")
+        Ez_func = lambdify((x, y, z), Ez_sym, "numpy")
+        q0_func = lambdify((x, y, z), q0_sym, "numpy")
+        rho0_func = lambdify((x, y, z), rho0_sym, "numpy")
         
         # --- 4. Evaluate on Grid ---
         print("Evaluating analytical fields over the 2D grid...")
-        E_r_num = np.zeros_like(R)
-        E_theta_num = np.zeros_like(R)
+        Ex_num = np.zeros_like(R)
+        Ez_num = np.zeros_like(R)
         q0_num = np.zeros_like(R)
         rho0_num = np.zeros_like(R)
         
-        # Vectorized evaluation
-        E_r_num[mask] = E_r_func(R_safe[mask], Theta_safe[mask])
-        E_theta_num[mask] = E_theta_func(R_safe[mask], Theta_safe[mask])
-        q0_num[mask] = q0_func(R_safe[mask], Theta_safe[mask])
-        rho0_num[mask] = rho0_func(R_safe[mask], Theta_safe[mask])
-        
-        # Correct 3D to 2D Projection for vector fields
-        sign_x = np.sign(X)
-        sign_x[sign_x == 0] = 1.0 
-        
-        Ex = (E_r_num * np.sin(Theta) + E_theta_num * np.cos(Theta)) * sign_x
-        Ez = E_r_num * np.cos(Theta) - E_theta_num * np.sin(Theta)
+        # Vectorized evaluation directly using X, Y, Z
+        Ex_num[mask] = Ex_func(X_safe[mask], Y_safe[mask], Z_safe[mask])
+        Ez_num[mask] = Ez_func(X_safe[mask], Y_safe[mask], Z_safe[mask])
+        q0_num[mask] = q0_func(X_safe[mask], Y_safe[mask], Z_safe[mask])
+        rho0_num[mask] = rho0_func(X_safe[mask], Y_safe[mask], Z_safe[mask])
         
         # Apply visual mask
-        Ex[~mask] = np.nan
-        Ez[~mask] = np.nan
+        Ex_num[~mask] = np.nan
+        Ez_num[~mask] = np.nan
         q0_num[~mask] = np.nan
         rho0_num[~mask] = np.nan
 
@@ -295,39 +333,40 @@ def calculate_automated_fields():
         print("Rendering Plot...")
         fig, axes = plt.subplots(1, 2, figsize=(16, 7))
         
-        # --- Panel 1: Physical Density (rho_0) ---
+        # Panel 1: Physical Density
         ax1 = axes[0]
         rho_max = np.nanmax(np.abs(rho0_num))
         if np.isnan(rho_max) or rho_max == 0: rho_max = 1.0
         
         cmap1 = ax1.pcolormesh(X, Z, rho0_num, shading='auto', cmap='RdBu_r', vmin=-rho_max, vmax=rho_max)
         fig.colorbar(cmap1, ax=ax1, label=r"Gravitational Energy Density ($\rho_{\hat{0}}$)")
-        ax1.streamplot(x_vals, z_vals, Ex, Ez, color='black', density=1.5, linewidth=0.8, arrowsize=1.2)
-        ax1.add_patch(plt.Circle((0, 0), rs_val, color='black', zorder=10))
+        ax1.streamplot(x_vals, z_vals, Ex_num, Ez_num, color='black', density=1.5, linewidth=0.8)
+        ax1.add_patch(plt.Circle((0, 0), horizon_r_bar, color='black', zorder=10))
         ax1.set_aspect('equal')
-        ax1.set_title("True Energy Density: $\\rho_{\hat{0}}$ (Spherically Symmetric)", fontsize=14, fontweight='bold')
+        ax1.set_title(r"True Energy Density: $\rho_{\hat{0}}$ (Cartesian Isotropic)", fontsize=14, fontweight='bold')
         ax1.set_xlabel("X (M)", fontsize=12)
         ax1.set_ylabel("Z (M)", fontsize=12)
 
-        # --- Panel 2: Macroscopic Charge (q_0) ---
+        # Panel 2: Macroscopic Charge
         ax2 = axes[1]
         q_max = np.nanmax(np.abs(q0_num))
         if np.isnan(q_max) or q_max == 0: q_max = 1.0 
         
         cmap2 = ax2.pcolormesh(X, Z, q0_num, shading='auto', cmap='RdBu_r', vmin=-q_max, vmax=q_max)
         fig.colorbar(cmap2, ax=ax2, label=r"Spacetime Energy Charge ($q_{\hat{0}}$)")
-        ax2.streamplot(x_vals, z_vals, Ex, Ez, color='black', density=1.5, linewidth=0.8, arrowsize=1.2)
-        ax2.add_patch(plt.Circle((0, 0), rs_val, color='black', zorder=10))
+        ax2.streamplot(x_vals, z_vals, Ex_num, Ez_num, color='black', density=1.5, linewidth=0.8)
+        ax2.add_patch(plt.Circle((0, 0), horizon_r_bar, color='black', zorder=10))
         ax2.set_aspect('equal')
-        ax2.set_title("Macroscopic Charge: $q_{\hat{0}}$ (Volume Modulated)", fontsize=14, fontweight='bold')
+        ax2.set_title(r"Macroscopic Charge: $q_{\hat{0}}$", fontsize=14, fontweight='bold')
         ax2.set_xlabel("X (M)", fontsize=12)
 
-        out_name = "Analytical_Density_vs_Charge.png"
+        out_name = "Analytical_Density_vs_Charge_Cartesian.png"
         plt.tight_layout()
         plt.savefig(out_name, dpi=200)
         print(f"🎉 Plot successfully saved to {out_name}\n")
 
-    labels = ['t', 'r', 'theta', 'phi']
+    # --- 3. Execution and Formatting ---
+    labels = ['t', 'x', 'y', 'z']
     E_Results = []
     B_Results = []
     
@@ -337,10 +376,11 @@ def calculate_automated_fields():
         E_Results.append(E)
         B_Results.append(B)
 
-    print("\n--- Electric Field (Radial Components E^a_R) ---")
+    print("\n--- Electric Field Components E^a_i ---")
+    # Just printing the first spatial leg to keep the terminal output clean
     for i in range(4):
-        print(f"E^({labels[i]}R) = ")
-        sp.pprint(sp.simplify(E_Results[i][1].subs(r, R_far)))
+        print(f"E^({labels[i]}x) = ")
+        sp.pprint(sp.simplify(E_Results[i][1]))
         print("")
 
     B_Matrix_Rows = []
@@ -358,6 +398,7 @@ def calculate_automated_fields():
     q_hat, j_hat = calculate_PRL_charges_and_currents(E_hat, B_hat, D_hat, H_hat, sqrt_det_g, alpha_func)
 
     # Trigger Visualization
-    plot_analytical_fields(E_hat, q_hat,rho_hat, M_val=1.0)
+    plot_analytical_fields(E_hat, q_hat, rho_hat, M_val=1.0)
+
 if __name__ == "__main__":
     calculate_automated_fields()
