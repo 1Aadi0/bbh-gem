@@ -171,6 +171,60 @@ def get_bardeen_spherical():
         'symbols': {'t': t, 'r': r, 'theta': theta, 'phi': phi, 'M': M, 'Qm': Qm}
     }
 
+def get_bardeen_cartesian():
+    """Bardeen Regular Black Hole (Cartesian Coordinates)"""
+    import sympy as sp
+    
+    t, x, y, z = sp.symbols('t x y z', real=True)
+    M, Qm = sp.symbols('M Qm', real=True, positive=True) 
+    
+    r = sp.sqrt(x**2 + y**2 + z**2)
+    
+    # The Bardeen lapse function
+    f = 1 - (2 * M * r**2) / (r**2 + Qm**2)**(sp.Rational(3, 2))
+    alpha_func = sp.sqrt(f)
+    
+    # B factor for stretching the spatial tetrad along the radial vector
+    B = (1 / alpha_func) - 1
+    
+    # 1. The Covariant Tetrad Matrix (A^a_\mu)
+    Tetrad = sp.Matrix([
+        [alpha_func, 0, 0, 0],
+        [0, 1 + B*(x**2)/r**2,     B*(x*y)/r**2,       B*(x*z)/r**2],
+        [0,   B*(y*x)/r**2,   1 + B*(y**2)/r**2,       B*(y*z)/r**2],
+        [0,   B*(z*x)/r**2,     B*(z*y)/r**2,     1 + B*(z**2)/r**2]
+    ])
+    
+    # 2. The Inverse Metric (g^{\mu \nu})
+    # g^{ij} = \delta^{ij} + (f - 1) * (x^i x^j) / r^2
+    C_inv = f - 1
+    g_inv = sp.zeros(4, 4)
+    g_inv[0, 0] = -1 / f
+    
+    coords_spatial = [x, y, z]
+    for i, c_i in enumerate(coords_spatial):
+        for j, c_j in enumerate(coords_spatial):
+            delta = 1 if i == j else 0
+            g_inv[i+1, j+1] = delta + C_inv * (c_i * c_j) / r**2
+            
+    # 3. Determinant of the metric
+    # In Cartesian mapping of spherical metrics, det(g) = 1 because the 
+    # r^2 sin(theta) Jacobian perfectly cancels out.
+    sqrt_det_g = sp.sympify(1)
+    
+    # 4. Normal vector
+    n_cov = sp.Matrix([-alpha_func, 0, 0, 0])
+    
+    return {
+        'coords': [t, x, y, z], 
+        'alpha_func': alpha_func, 
+        'g_inv': g_inv, 
+        'sqrt_det_g': sqrt_det_g, 
+        'Tetrad': Tetrad, 
+        'n_cov': n_cov, 
+        'symbols': {'t': t, 'x': x, 'y': y, 'z': z, 'M': M, 'Qm': Qm}
+    }
+
 def get_kerr_boyer_lindquist():
     """Kerr Metric (Exact Boyer-Lindquist Spherical Coordinates)"""
     t, r, theta, phi = sp.symbols('t r theta phi', real=True)
