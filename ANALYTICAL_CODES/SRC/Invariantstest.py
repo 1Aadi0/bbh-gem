@@ -708,52 +708,43 @@ def calculate_automated_fields(metric_data):
     # }
 
     def calculate_invariants(E_hat, B_hat, D_hat, H_hat):
-        def contract_4d_scalars(T1, T1_type, T2, T2_type):
             """
-            Universally contracts two 4D tensors into a scalar.
-            Handles 'up-up' (E, B) and 'up-down' (D, H) index types.
-            Applies the Minkowski signature eta_ab = diag(-1, 1, 1, 1).
+            Calculates the scalar invariants using the strict Minkowskian signature 
+            eta_ab = diag(-1, 1, 1, 1) for the local tangent space contractions.
             """
-            scalar = sp.sympify(0)
-            eta = [-1, 1, 1, 1] # Minkowski metric
-            
-            for a in range(4):
-                for b in range(4):
-                    # STEP 1: Convert everything to pure contravariant (up-up)
-                    # If 'up-down' (like D^a_b), we raise the second index: T^{ab} = T^a_b * eta^{bb}
-                    val1_up_up = T1[a, b] * eta[b] if T1_type == "up-down" else T1[a, b]
-                    val2_up_up = T2[a, b] * eta[b] if T2_type == "up-down" else T2[a, b]
-                    
-                    # STEP 2: Lower the indices of the second tensor to prepare for contraction
-                    # T_{ab} = eta_aa * eta_bb * T^{ab}
-                    val2_down_down = val2_up_up * eta[a] * eta[b]
-                    
-                    # STEP 3: Perform the invariant sum (T1^{ab} * T2_{ab})
-                    scalar += val1_up_up * val2_down_down
-                    
-            return sp.cancel(scalar)
+            def minkowski_contract(T1, T2):
+                """Helper function to perform T1^a_b * T2^b_a with proper signature"""
+                scalar = sp.sympify(0)
+                for a in range(4):
+                    for b in range(4):
+                        # In tangent space, lowering a time index flips the sign
+                        # T^a_b * T^b_a = T^0_0*T^0_0 - T^0_i*T^i_0 - T^i_0*T^0_i + T^i_j*T^j_i
+                        sign_a = -1 if a == 0 else 1
+                        sign_b = -1 if b == 0 else 1
+                        scalar += sign_a * sign_b * T1[b, a] * T2[a, b]
+                return scalar
 
-        # 1. Field Strength Invariants (Contravariant x Contravariant)
-        E_sq = contract_4d_scalars(E_hat, "up-up", E_hat, "up-up")
-        B_sq = contract_4d_scalars(B_hat, "up-up", B_hat, "up-up")
-        L_fields = E_sq - B_sq
-        Pontryagin = contract_4d_scalars(E_hat, "up-up", B_hat, "up-up")
+            # Field Strength Invariants
+            E_sq = minkowski_contract(E_hat, E_hat)
+            B_sq = minkowski_contract(B_hat, B_hat)
+            L_fields = E_sq - B_sq
+            Pontryagin = minkowski_contract(E_hat, B_hat)
 
-        # 2. Macroscopic Constitutive Invariants (Mixed x Mixed)
-        D_sq = contract_4d_scalars(D_hat, "up-down", D_hat, "up-down")
-        H_sq = contract_4d_scalars(H_hat, "up-down", H_hat, "up-down")
-        L_macro = D_sq - H_sq
-        Macro_Twist = contract_4d_scalars(D_hat, "up-down", H_hat, "up-down")
+            # Macroscopic Constitutive Invariants
+            D_sq = minkowski_contract(D_hat, D_hat)
+            H_sq = minkowski_contract(H_hat, H_hat)
+            L_macro = D_sq - H_sq
+            Macro_Twist = minkowski_contract(D_hat, H_hat)
 
-        # 3. Cross Invariants (Contravariant x Mixed)
-        ED_contract = contract_4d_scalars(E_hat, "up-up", D_hat, "up-down")
-        BH_contract = contract_4d_scalars(B_hat, "up-up", H_hat, "up-down")
+            # Cross Invariants (Energy Density analogs)
+            ED_contract = minkowski_contract(E_hat, D_hat)
+            BH_contract = minkowski_contract(B_hat, H_hat)
 
-        return {
-            'E_sq': E_sq, 'B_sq': B_sq, 'L_fields': L_fields, 'Pontryagin': Pontryagin,
-            'D_sq': D_sq, 'H_sq': H_sq, 'L_macro': L_macro, 'Macro_Twist': Macro_Twist,
-            'ED_contract': ED_contract, 'BH_contract': BH_contract
-        }
+            return {
+                'E_sq': E_sq, 'B_sq': B_sq, 'L_fields': L_fields, 'Pontryagin': Pontryagin,
+                'D_sq': D_sq, 'H_sq': H_sq, 'L_macro': L_macro, 'Macro_Twist': Macro_Twist,
+                'ED_contract': ED_contract, 'BH_contract': BH_contract
+            }
 
     # Execute Engine
     E_Results, B_Results = [], []
