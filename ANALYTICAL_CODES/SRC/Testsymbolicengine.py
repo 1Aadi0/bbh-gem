@@ -562,7 +562,136 @@ def get_schwarzschild_pg_cartesian_masked():
         # Pass the substitution dictionary out to the engine
         'subs_dict': {sp.Derivative(B_dummy, r): actual_dB, B_dummy: actual_B}
     }
+
+def get_hayward_spherical():
+    """
+    Hayward Regular Black Hole (Spherical Coordinates)
+    Resolves the r=0 singularity using a fundamental length scale 'l'.
+    """
+    t, r, theta, phi = sp.symbols('t r theta phi', real=True)
+    M, l = sp.symbols('M l', real=True, positive=True)
+    
+    # Hayward modification to the Schwarzschild f(r)
+    f = 1 - (2 * M * r**2) / (r**3 + 2 * M * l**2)
+    alpha_func = sp.sqrt(f)
+    
+    g_cov = sp.diag(-(alpha_func**2), 1/f, r**2, r**2 * sp.sin(theta)**2)
+    g_inv = sp.diag(-1/(alpha_func**2), f, 1/r**2, 1/(r**2 * sp.sin(theta)**2))
+    
+    # Exact known volume element (g_tt * g_rr = -1)
+    sqrt_det_g = r**2 * sp.sin(theta)
+    
+    Tetrad = sp.Matrix([
+        [alpha_func, 0, 0, 0],
+        [0, sp.sqrt(1/f), 0, 0],
+        [0, 0, r, 0],
+        [0, 0, 0, r*sp.sin(theta)]
+    ])
+    n_cov = sp.Matrix([-alpha_func, 0, 0, 0])
+    
+    return {
+        'coords': [t, r, theta, phi], 'alpha_func': alpha_func, 'g_inv': g_inv, 
+        'sqrt_det_g': sqrt_det_g, 'Tetrad': Tetrad, 'n_cov': n_cov, 
+        'symbols': {'t': t, 'r': r, 'theta': theta, 'phi': phi, 'M': M, 'l': l}
+    }
+
+def get_bronnikov_ellis_spherical():
+    """
+    Bronnikov-Ellis Geometry / Traversable Wormhole (Spherical Coordinates)
+    Metric #3 from Sayan Kar's note.
+    Corrected: Spatial metric uses 1 - b0^2/r^2
+    """
+    t, r, theta, phi = sp.symbols('t r theta phi', real=True)
+    b0 = sp.symbols('b0', real=True, positive=True) # Throat parameter
+    
+    alpha_func = sp.sympify(1) # Zero tidal forces in time
+    f_r = 1 - (b0**2)/(r**2)
+    
+    g_cov = sp.diag(-1, 1/f_r, r**2, r**2 * sp.sin(theta)**2)
+    g_inv = sp.diag(-1, f_r, 1/r**2, 1/(r**2 * sp.sin(theta)**2))
+    
+    # Custom volume element since g_tt * g_rr != -1
+    sqrt_det_g = sp.sqrt(1/f_r) * r**2 * sp.sin(theta)
+    
+    Tetrad = sp.Matrix([
+        [1, 0, 0, 0],
+        [0, sp.sqrt(1/f_r), 0, 0],
+        [0, 0, r, 0],
+        [0, 0, 0, r*sp.sin(theta)]
+    ])
+    n_cov = sp.Matrix([-1, 0, 0, 0])
+    
+    return {
+        'coords': [t, r, theta, phi], 'alpha_func': alpha_func, 'g_inv': g_inv, 
+        'sqrt_det_g': sqrt_det_g, 'Tetrad': Tetrad, 'n_cov': n_cov, 
+        'symbols': {'t': t, 'r': r, 'theta': theta, 'phi': phi, 'b0': b0}
+    }
+
+def get_zero_tidal_schwarzschild_spherical():
+    """
+    Wormhole Schwarzschild / Zero Tidal Force (Spherical Coordinates)
+    Metric #2 from Sayan Kar's note.
+    """
+    t, r, theta, phi = sp.symbols('t r theta phi', real=True)
+    M = sp.symbols('M', real=True, positive=True)
+    
+    alpha_func = sp.sympify(1) # Time flows normally everywhere
+    f_r = 1 - 2*M/r
+    
+    g_cov = sp.diag(-1, 1/f_r, r**2, r**2 * sp.sin(theta)**2)
+    g_inv = sp.diag(-1, f_r, 1/r**2, 1/(r**2 * sp.sin(theta)**2))
+    
+    # Custom volume element since g_tt * g_rr != -1
+    sqrt_det_g = sp.sqrt(1/f_r) * r**2 * sp.sin(theta)
+    
+    Tetrad = sp.Matrix([
+        [1, 0, 0, 0],
+        [0, sp.sqrt(1/f_r), 0, 0],
+        [0, 0, r, 0],
+        [0, 0, 0, r*sp.sin(theta)]
+    ])
+    n_cov = sp.Matrix([-1, 0, 0, 0])
+    
+    return {
+        'coords': [t, r, theta, phi], 'alpha_func': alpha_func, 'g_inv': g_inv, 
+        'sqrt_det_g': sqrt_det_g, 'Tetrad': Tetrad, 'n_cov': n_cov, 
+        'symbols': {'t': t, 'r': r, 'theta': theta, 'phi': phi, 'M': M}
+    }
+
+def get_kappa_lambda_wormhole_spherical():
+    """
+    Non-Singular Wormhole (kappa, lambda variant) (Spherical Coordinates)
+    Metric #1 from Sayan Kar's note.
+    """
+    t, r, theta, phi = sp.symbols('t r theta phi', real=True)
+    M, kappa, lam = sp.symbols('M kappa lambda', real=True, positive=True)
+    
+    f_r = 1 - 2*M/r
+    alpha_func = kappa + lam * sp.sqrt(f_r)
+    
+    g_cov = sp.diag(-(alpha_func**2), 1/f_r, r**2, r**2 * sp.sin(theta)**2)
+    g_inv = sp.diag(-1/(alpha_func**2), f_r, 1/r**2, 1/(r**2 * sp.sin(theta)**2))
+    
+    # Custom volume element
+    sqrt_det_g = alpha_func * sp.sqrt(1/f_r) * r**2 * sp.sin(theta)
+    
+    Tetrad = sp.Matrix([
+        [alpha_func, 0, 0, 0],
+        [0, sp.sqrt(1/f_r), 0, 0],
+        [0, 0, r, 0],
+        [0, 0, 0, r*sp.sin(theta)]
+    ])
+    n_cov = sp.Matrix([-alpha_func, 0, 0, 0])
+    
+    return {
+        'coords': [t, r, theta, phi], 'alpha_func': alpha_func, 'g_inv': g_inv, 
+        'sqrt_det_g': sqrt_det_g, 'Tetrad': Tetrad, 'n_cov': n_cov, 
+        'symbols': {'t': t, 'r': r, 'theta': theta, 'phi': phi, 'M': M, 'kappa': kappa, 'lambda': lam}
+    }
+
+
 # 2. THE CORE TENSOR ENGINE (RAW AST EVALUATION)
+
 # ==========================================
 
 def calculate_automated_fields(metric_data):
@@ -688,73 +817,6 @@ def calculate_automated_fields(metric_data):
                 j[leg, comp] = sqrt_gamma * (contract_alpha(E_hat, D_hat, leg, comp) + contract_alpha(B_hat, H_hat, comp, leg) - half * delta_leg_comp * (ED_scalar + BH_scalar))
         return q, j
 
-    # # Execute Engine
-    # E_Results, B_Results = [], []
-    # for i in range(4):
-    #     E, B = get_dynamical_fields(i)
-    #     E_Results.append(E)
-    #     B_Results.append(B)
-
-    # E_hat, B_hat, D_hat, H_hat = constitutive_relations(E_Results, B_Results, Tetrad)
-    # rho_hat, s_hat = calculate_charges_and_currents(E_hat, B_hat, D_hat, H_hat)
-    # q_hat, j_hat = calculate_PRL_charges_and_currents(E_hat, B_hat, D_hat, H_hat, sqrt_det_g, alpha_func)
-    
-    # return {
-    #     'E_hat': E_hat, 'B_hat': B_hat, 
-    #     'D_hat': D_hat, 'H_hat': H_hat,
-    #     'rho_hat': rho_hat, 's_hat': s_hat,
-    #     'q_hat': q_hat, 'j_hat': j_hat,
-    #     'symbols': metric_data['symbols']
-    # }
-
-    def calculate_invariants(E_hat, B_hat, D_hat, H_hat):
-        def contract_4d_scalars(T1, T1_type, T2, T2_type):
-            """
-            Universally contracts two 4D tensors into a scalar.
-            Handles 'up-up' (E, B) and 'up-down' (D, H) index types.
-            Applies the Minkowski signature eta_ab = diag(-1, 1, 1, 1).
-            """
-            scalar = sp.sympify(0)
-            eta = [-1, 1, 1, 1] # Minkowski metric
-            
-            for a in range(4):
-                for b in range(4):
-                    # STEP 1: Convert everything to pure contravariant (up-up)
-                    # If 'up-down' (like D^a_b), we raise the second index: T^{ab} = T^a_b * eta^{bb}
-                    val1_up_up = T1[a, b] * eta[b] if T1_type == "up-down" else T1[a, b]
-                    val2_up_up = T2[a, b] * eta[b] if T2_type == "up-down" else T2[a, b]
-                    
-                    # STEP 2: Lower the indices of the second tensor to prepare for contraction
-                    # T_{ab} = eta_aa * eta_bb * T^{ab}
-                    val2_down_down = val2_up_up * eta[a] * eta[b]
-                    
-                    # STEP 3: Perform the invariant sum (T1^{ab} * T2_{ab})
-                    scalar += val1_up_up * val2_down_down
-                    
-            return sp.cancel(scalar)
-
-        # 1. Field Strength Invariants (Contravariant x Contravariant)
-        E_sq = contract_4d_scalars(E_hat, "up-up", E_hat, "up-up")
-        B_sq = contract_4d_scalars(B_hat, "up-up", B_hat, "up-up")
-        L_fields = E_sq - B_sq
-        Pontryagin = contract_4d_scalars(E_hat, "up-up", B_hat, "up-up")
-
-        # 2. Macroscopic Constitutive Invariants (Mixed x Mixed)
-        D_sq = contract_4d_scalars(D_hat, "up-down", D_hat, "up-down")
-        H_sq = contract_4d_scalars(H_hat, "up-down", H_hat, "up-down")
-        L_macro = D_sq - H_sq
-        Macro_Twist = contract_4d_scalars(D_hat, "up-down", H_hat, "up-down")
-
-        # 3. Cross Invariants (Contravariant x Mixed)
-        ED_contract = contract_4d_scalars(E_hat, "up-up", D_hat, "up-down")
-        BH_contract = contract_4d_scalars(B_hat, "up-up", H_hat, "up-down")
-
-        return {
-            'E_sq': E_sq, 'B_sq': B_sq, 'L_fields': L_fields, 'Pontryagin': Pontryagin,
-            'D_sq': D_sq, 'H_sq': H_sq, 'L_macro': L_macro, 'Macro_Twist': Macro_Twist,
-            'ED_contract': ED_contract, 'BH_contract': BH_contract
-        }
-
     # Execute Engine
     E_Results, B_Results = [], []
     for i in range(4):
@@ -766,14 +828,81 @@ def calculate_automated_fields(metric_data):
     rho_hat, s_hat = calculate_charges_and_currents(E_hat, B_hat, D_hat, H_hat)
     q_hat, j_hat = calculate_PRL_charges_and_currents(E_hat, B_hat, D_hat, H_hat, sqrt_det_g, alpha_func)
     
-    # Run the new invariants calculator
-    invariants = calculate_invariants(E_hat, B_hat, D_hat, H_hat)
-    
     return {
         'E_hat': E_hat, 'B_hat': B_hat, 
         'D_hat': D_hat, 'H_hat': H_hat,
         'rho_hat': rho_hat, 's_hat': s_hat,
         'q_hat': q_hat, 'j_hat': j_hat,
-        'invariants': invariants,           # Added to output
         'symbols': metric_data['symbols']
-        }
+    }
+
+    # def calculate_invariants(E_hat, B_hat, D_hat, H_hat):
+    #     def contract_4d_scalars(T1, T1_type, T2, T2_type):
+    #         """
+    #         Universally contracts two 4D tensors into a scalar.
+    #         Handles 'up-up' (E, B) and 'up-down' (D, H) index types.
+    #         Applies the Minkowski signature eta_ab = diag(-1, 1, 1, 1).
+    #         """
+    #         scalar = sp.sympify(0)
+    #         eta = [-1, 1, 1, 1] # Minkowski metric
+            
+    #         for a in range(4):
+    #             for b in range(4):
+    #                 # STEP 1: Convert everything to pure contravariant (up-up)
+    #                 # If 'up-down' (like D^a_b), we raise the second index: T^{ab} = T^a_b * eta^{bb}
+    #                 val1_up_up = T1[a, b] * eta[b] if T1_type == "up-down" else T1[a, b]
+    #                 val2_up_up = T2[a, b] * eta[b] if T2_type == "up-down" else T2[a, b]
+                    
+    #                 # STEP 2: Lower the indices of the second tensor to prepare for contraction
+    #                 # T_{ab} = eta_aa * eta_bb * T^{ab}
+    #                 val2_down_down = val2_up_up * eta[a] * eta[b]
+                    
+    #                 # STEP 3: Perform the invariant sum (T1^{ab} * T2_{ab})
+    #                 scalar += val1_up_up * val2_down_down
+                    
+    #         return sp.cancel(scalar)
+
+    #     # 1. Field Strength Invariants (Contravariant x Contravariant)
+    #     E_sq = contract_4d_scalars(E_hat, "up-up", E_hat, "up-up")
+    #     B_sq = contract_4d_scalars(B_hat, "up-up", B_hat, "up-up")
+    #     L_fields = E_sq - B_sq
+    #     Pontryagin = contract_4d_scalars(E_hat, "up-up", B_hat, "up-up")
+
+    #     # 2. Macroscopic Constitutive Invariants (Mixed x Mixed)
+    #     D_sq = contract_4d_scalars(D_hat, "up-down", D_hat, "up-down")
+    #     H_sq = contract_4d_scalars(H_hat, "up-down", H_hat, "up-down")
+    #     L_macro = D_sq - H_sq
+    #     Macro_Twist = contract_4d_scalars(D_hat, "up-down", H_hat, "up-down")
+
+    #     # 3. Cross Invariants (Contravariant x Mixed)
+    #     ED_contract = contract_4d_scalars(E_hat, "up-up", D_hat, "up-down")
+    #     BH_contract = contract_4d_scalars(B_hat, "up-up", H_hat, "up-down")
+
+    #     return {
+    #         'E_sq': E_sq, 'B_sq': B_sq, 'L_fields': L_fields, 'Pontryagin': Pontryagin,
+    #         'D_sq': D_sq, 'H_sq': H_sq, 'L_macro': L_macro, 'Macro_Twist': Macro_Twist,
+    #         'ED_contract': ED_contract, 'BH_contract': BH_contract
+    #     }
+
+    # # Execute Engine
+    # E_Results, B_Results = [], []
+    # for i in range(4):
+    #     E, B = get_dynamical_fields(i)
+    #     E_Results.append(E)
+    #     B_Results.append(B)
+
+    # E_hat, B_hat, D_hat, H_hat = constitutive_relations(E_Results, B_Results, Tetrad)
+    # rho_hat, s_hat = calculate_charges_and_currents(E_hat, B_hat, D_hat, H_hat)
+    # q_hat, j_hat = calculate_PRL_charges_and_currents(E_hat, B_hat, D_hat, H_hat, sqrt_det_g, alpha_func)
+    
+    # # Run the new invariants calculator
+    # invariants = calculate_invariants(E_hat, B_hat, D_hat, H_hat)
+    
+    # return {
+    #     'E_hat': E_hat, 'B_hat': B_hat, 
+    #     'D_hat': D_hat, 'H_hat': H_hat,
+    #     'rho_hat': rho_hat, 's_hat': s_hat,
+    #     'q_hat': q_hat, 'j_hat': j_hat,
+    #     'invariants': invariants,           # Added to output
+    #     'symbols': metric_data['symbols']
+    #     }
