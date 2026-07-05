@@ -36,7 +36,6 @@ def get_schwarzschild_spherical():
         'symbols': {'t': t, 'r': r, 'theta': theta, 'phi': phi, 'M': M}
     }
 
-import sympy as sp
 
 def get_schwarzschild_isotropic_cartesian_masked():
     """
